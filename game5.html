@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Utopia 7Cs 三連消</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 480px;
+            max-height: 850px;
+            background: linear-gradient(to bottom, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HUD Header */
+        .hud {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 32, 39, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+        .hud-item {
+            text-align: center;
+        }
+        .hud-label {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+        }
+        .hud-value {
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: #38bdf8;
+        }
+
+        /* Card Stack Field */
+        #play-area {
+            position: absolute;
+            top: 75px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 220px);
+            overflow: hidden;
+        }
+
+        /* Tile Style */
+        .tile {
+            position: absolute;
+            width: 52px;
+            height: 58px;
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset 0 2px 3px rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: filter 0.2s ease;
+        }
+        .tile.blocked {
+            filter: brightness(0.3) grayscale(0.6);
+            cursor: not-allowed;
+        }
+        .tile-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+        .tile-name {
+            font-size: 0.48rem;
+            color: #cbd5e1;
+            margin-top: 2px;
+            text-align: center;
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tile img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Bottom Card Slot (7-slots) */
+        #slot-container-wrapper {
+            position: absolute;
+            bottom: 75px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(56, 189, 248, 0.4);
+            border-radius: 18px;
+            padding: 8px 6px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            z-index: 10;
+        }
+        #slot-container {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            height: 60px;
+            align-items: center;
+        }
+        .slot-cell {
+            width: 46px;
+            height: 52px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .slot-cell .tile {
+            position: relative;
+            top: auto;
+            left: auto;
+            width: 44px;
+            height: 50px;
+            box-shadow: none;
+        }
+
+        /* Powerup Bar */
+        #props-bar {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            display: flex;
+            justify-content: space-around;
+            z-index: 10;
+        }
+        .prop-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .prop-btn:active {
+            transform: scale(0.95);
+            background: rgba(56, 189, 248, 0.3);
+        }
+
+        /* Screens & Panels */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(12px);
+            z-index: 20;
+            padding: 20px;
+            text-align: center;
+        }
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .panel {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 20px 16px;
+            border-radius: 24px;
+            width: 92%;
+            max-height: 94vh;
+            overflow-y: auto;
+        }
+        .lang-selector {
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+        .lang-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #cbd5e1;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .lang-btn.active {
+            background: #38bdf8;
+            color: #0f172a;
+            font-weight: bold;
+            border-color: #38bdf8;
+        }
+        h1 {
+            margin: 0 0 6px 0;
+            font-size: 1.25rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .title-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        p {
+            color: #e2e8f0;
+            font-size: 0.78rem;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+        .high-score-badge {
+            background: rgba(250, 204, 21, 0.15);
+            border: 1px solid rgba(250, 204, 21, 0.4);
+            color: #facc15;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: inline-block;
+        }
+        .tier-guide {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+        }
+        .tier-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.62rem;
+            color: #cbd5e1;
+        }
+        .tier-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+            overflow: hidden;
+        }
+        .tier-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .btn-diff {
+            width: 100%;
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            border-radius: 18px;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .btn {
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #475569, #1e293b);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-item">
+                <div class="hud-label" id="label-score">得分</div>
+                <div id="score" class="hud-value">0</div>
+            </div>
+            <div class="hud-item">
+                <div class="hud-label" id="label-remaining">剩餘卡牌</div>
+                <div id="remaining-tiles" class="hud-value">0</div>
+            </div>
+        </div>
+
+        <!-- Tile Stack Area -->
+        <div id="play-area"></div>
+
+        <!-- Bottom Card Slot -->
+        <div id="slot-container-wrapper">
+            <div id="slot-container">
+                <div class="slot-cell"></div>
+                <div class="slot-cell"></div>
+                <div class="slot-cell"></div>
+                <div class="slot-cell"></div>
+                <div class="slot-cell"></div>
+                <div class="slot-cell"></div>
+                <div class="slot-cell"></div>
+            </div>
+        </div>
+
+        <!-- Props / Powerups -->
+        <div id="props-bar">
+            <button class="prop-btn" onclick="useProp('out')">📤 <span id="prop-out">移出卡牌</span></button>
+            <button class="prop-btn" onclick="useProp('undo')">↩️ <span id="prop-undo">復原一步</span></button>
+            <button class="prop-btn" onclick="useProp('shuffle')">🔀 <span id="prop-shuffle">洗牌重新</span></button>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <div class="panel">
+                <div class="lang-selector">
+                    <button class="lang-btn active" onclick="setLanguage('zh-HK')">繁體中文</button>
+                    <button class="lang-btn" onclick="setLanguage('zh-CN')">简体中文</button>
+                    <button class="lang-btn" onclick="setLanguage('en')">English</button>
+                </div>
+
+                <h1>
+                    <img src="SU image.jpg" alt="Logo" class="title-logo" onerror="this.style.display='none'">
+                    <span id="start-title">Utopia 7Cs 三連消</span>
+                    <img src="SU image.jpg" alt="Logo" class="title-logo" onerror="this.style.display='none'">
+                </h1>
+
+                <div id="start-highscore" class="high-score-badge">🏆 最高分：0</div>
+                <p id="start-desc">收集 3 張相同的 7Cs 或 Utopia 標誌卡牌進行消除，考驗你的解題策略與團隊理念！</p>
+
+                <div class="tier-guide" id="tier-guide"></div>
+
+                <button class="btn-diff" id="btn-start" onclick="startGame()">▶️ 開始挑戰</button>
+            </div>
+        </div>
+
+        <!-- Game Over / Victory Screen -->
+        <div id="gameover-screen" class="screen hidden">
+            <div class="panel">
+                <h1 id="gameover-title">💥 槽位已滿，挑戰失敗！ 💥</h1>
+                <p id="gameover-desc">最終總得分：</p>
+                <div id="final-score" style="font-size: 2rem; font-weight: bold; color: #38bdf8; margin-bottom: 4px;">0</div>
+                <div id="gameover-highscore" class="high-score-badge">🏆 最高分：0</div>
+
+                <div class="btn-group">
+                    <button class="btn" id="btn-restart" onclick="startGame()">再次挑戰</button>
+                    <button class="btn btn-secondary" id="btn-home" onclick="goHome()">返回主頁</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ELEMENTS = [
+            { id: 1, name: 'Commitment',   icon: '🛡️', color: '#1e3a8a', isImage: false },
+            { id: 2, name: 'Courage',      icon: '⚡', color: '#b45309', isImage: false },
+            { id: 3, name: 'Cultivation',  icon: '💥', color: '#831843', isImage: false },
+            { id: 4, name: 'Compassion',   icon: '✨', color: '#065f46', isImage: false },
+            { id: 5, name: 'Connection',   icon: '🌐', color: '#312e81', isImage: false },
+            { id: 6, name: 'Communication',icon: '💬', color: '#701a75', isImage: false },
+            { id: 7, name: 'Consideration',icon: '🎯', color: '#14532d', isImage: false },
+            { id: 8, name: 'Utopia Logo',  icon: '',   color: '#0284c7', isImage: true, imgSrc: 'SU image.jpg' }
+        ];
+
+        const i18n = {
+            'zh-HK': {
+                labelScore: '得分', labelRemaining: '剩餘卡牌',
+                startTitle: 'Utopia 7Cs 三連消', startDesc: '收集 3 張相同的 7Cs 或 Utopia 卡牌進行消除，考驗你的解題策略與團隊理念！',
+                btnStart: '▶️ 開始挑戰', btnRestart: '再次挑戰', btnHome: '返回主頁',
+                propOut: '移出卡牌', propUndo: '復原一步', propShuffle: '洗牌重新',
+                gameoverTitleFail: '💥 槽位已滿，挑戰失敗！ 💥', gameoverTitleWin: '🎉 恭喜通關！成功共建 Utopia！ 🎉',
+                highScoreFormat: (score) => `🏆 最高分：${score}`, newHighScoreFormat: (score) => `🔥 創下新高分：${score}`
+            },
+            'zh-CN': {
+                labelScore: '得分', labelRemaining: '剩余卡牌',
+                startTitle: 'Utopia 7Cs 三连消', startDesc: '收集 3 张相同的 7Cs 或 Utopia 卡牌进行消除，考验你的解题策略与团队理念！',
+                btnStart: '▶️ 开始挑战', btnRestart: '再次挑战', btnHome: '返回主页',
+                propOut: '移出卡牌', propUndo: '撤销一步', propShuffle: '随机洗牌',
+                gameoverTitleFail: '💥 槽位已满，挑战失败！ 💥', gameoverTitleWin: '🎉 恭喜通关！成功共建 Utopia！ 🎉',
+                highScoreFormat: (score) => `🏆 最高分：${score}`, newHighScoreFormat: (score) => `🔥 创下新高分：${score}`
+            },
+            'en': {
+                labelScore: 'SCORE', labelRemaining: 'REMAINING',
+                startTitle: 'Utopia 7Cs Match', startDesc: 'Clear matching 7Cs and Utopia elements in sets of 3 to complete the challenge!',
+                btnStart: '▶️ Start Challenge', btnRestart: 'Play Again', btnHome: 'Main Menu',
+                propOut: 'Move Out', propUndo: 'Undo', propShuffle: 'Shuffle',
+                gameoverTitleFail: '💥 Slot Full! Game Over 💥', gameoverTitleWin: '🎉 Victory! Utopia Complete! 🎉',
+                highScoreFormat: (score) => `🏆 High Score: ${score}`, newHighScoreFormat: (score) => `🔥 NEW HIGH SCORE: ${score}`
+            }
+        };
+
+        let currentLang = 'zh-HK';
+        let score = 0;
+        let gameActive = false;
+        let allTiles = [];
+        let slotTiles = [];
+        let moveHistory = [];
+
+        const TILE_WIDTH = 50;
+        const TILE_HEIGHT = 56;
+
+        const playArea = document.getElementById('play-area');
+        const scoreEl = document.getElementById('score');
+        const remainingEl = document.getElementById('remaining-tiles');
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+
+        function initTierGuide() {
+            const guide = document.getElementById('tier-guide');
+            guide.innerHTML = '';
+            ELEMENTS.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'tier-item';
+                let iconHtml = t.isImage ? `<img src="${t.imgSrc}" alt="${t.name}" onerror="this.src=''">` : t.icon;
+                item.innerHTML = `<div class="tier-icon" style="background:${t.color}">${iconHtml}</div><span>${t.name}</span>`;
+                guide.appendChild(item);
+            });
+        }
+        initTierGuide();
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            const data = i18n[lang];
+            document.getElementById('label-score').innerText = data.labelScore;
+            document.getElementById('label-remaining').innerText = data.labelRemaining;
+            document.getElementById('start-title').innerText = data.startTitle;
+            document.getElementById('start-desc').innerText = data.startDesc;
+            document.getElementById('btn-start').innerText = data.btnStart;
+            document.getElementById('btn-restart').innerText = data.btnRestart;
+            document.getElementById('btn-home').innerText = data.btnHome;
+            document.getElementById('prop-out').innerText = data.propOut;
+            document.getElementById('prop-undo').innerText = data.propUndo;
+            document.getElementById('prop-shuffle').innerText = data.propShuffle;
+            updateHighScoreDisplay();
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function getHighScore() { return localStorage.getItem('utopia_match_highscore') || 0; }
+
+        function updateHighScoreDisplay() {
+            const data = i18n[currentLang];
+            const hs = getHighScore();
+            document.getElementById('start-highscore').innerText = data.highScoreFormat(hs);
+            document.getElementById('gameover-highscore').innerText = data.highScoreFormat(hs);
+        }
+        updateHighScoreDisplay();
+
+        function generateTiles() {
+            allTiles = [];
+            playArea.innerHTML = '';
+            slotTiles = [];
+            moveHistory = [];
+            renderSlots();
+
+            const totalSets = 18; // 54 cards total
+            let pool = [];
+            for (let i = 0; i < totalSets; i++) {
+                const elem = ELEMENTS[i % ELEMENTS.length];
+                pool.push(elem, elem, elem);
+            }
+            pool.sort(() => Math.random() - 0.5);
+
+            const areaWidth = playArea.clientWidth || 360;
+            const startX = (areaWidth - (4 * TILE_WIDTH + 3 * 4)) / 2;
+            const startY = 15;
+
+            const layers = 5;
+            let poolIdx = 0;
+
+            for (let layer = 0; layer < layers; layer++) {
+                const rows = 3;
+                const cols = 4;
+                const offsetX = startX + (layer % 2) * 12 + (layer * 4);
+                const offsetY = startY + layer * 28;
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        if (poolIdx >= pool.length) break;
+                        const elemData = pool[poolIdx++];
+
+                        const tile = {
+                            id: ++idCounter,
+                            element: elemData,
+                            layer: layer,
+                            x: offsetX + c * (TILE_WIDTH + 4),
+                            y: offsetY + r * (TILE_HEIGHT + 4),
+                            isBlocked: false,
+                            dom: null
+                        };
+                        allTiles.push(tile);
+                    }
+                }
+            }
+
+            while (poolIdx < pool.length) {
+                const elemData = pool[poolIdx++];
+                const tile = {
+                    id: ++idCounter,
+                    element: elemData,
+                    layer: layers,
+                    x: startX + 30 + (Math.random() * 80),
+                    y: startY + 80 + (Math.random() * 80),
+                    isBlocked: false,
+                    dom: null
+                };
+                allTiles.push(tile);
+            }
+
+            allTiles.forEach(tile => {
+                const el = document.createElement('div');
+                el.className = 'tile';
+                el.style.left = `${tile.x}px`;
+                el.style.top = `${tile.y}px`;
+                el.style.zIndex = tile.layer + 1;
+
+                let iconContent = tile.element.isImage 
+                    ? `<img src="${tile.element.imgSrc}" alt="" onerror="this.src=''">` 
+                    : `<div class="tile-icon">${tile.element.icon}</div>`;
+
+                el.innerHTML = `${iconContent}<div class="tile-name">${tile.element.name}</div>`;
+                el.onclick = () => onTileClick(tile);
+                tile.dom = el;
+                playArea.appendChild(el);
+            });
+
+            updateBlockedStatus();
+            updateRemainingCount();
+        }
+
+        let idCounter = 0;
+
+        function updateBlockedStatus() {
+            allTiles.forEach(tileA => {
+                let blocked = false;
+                allTiles.forEach(tileB => {
+                    if (tileA.id === tileB.id) return;
+                    if (tileB.layer > tileA.layer) {
+                        const xOverlap = Math.max(0, Math.min(tileA.x + TILE_WIDTH, tileB.x + TILE_WIDTH) - Math.max(tileA.x, tileB.x));
+                        const yOverlap = Math.max(0, Math.min(tileA.y + TILE_HEIGHT, tileB.y + TILE_HEIGHT) - Math.max(tileA.y, tileB.y));
+                        
+                        if (xOverlap > 6 && yOverlap > 6) {
+                            blocked = true;
+                        }
+                    }
+                });
+                
+                tileA.isBlocked = blocked;
+                if (tileA.dom) {
+                    if (blocked) {
+                        tileA.dom.classList.add('blocked');
+                    } else {
+                        tileA.dom.classList.remove('blocked');
+                    }
+                }
+            });
+        }
+
+        function updateRemainingCount() {
+            remainingEl.innerText = allTiles.length;
+        }
+
+        function onTileClick(tile) {
+            if (!gameActive || tile.isBlocked) return;
+            if (slotTiles.length >= 7) return;
+
+            allTiles = allTiles.filter(t => t.id !== tile.id);
+            if (tile.dom) tile.dom.remove();
+
+            moveHistory.push(tile);
+            slotTiles.push(tile);
+            slotTiles.sort((a, b) => a.element.id - b.element.id);
+
+            renderSlots();
+            updateBlockedStatus();
+            updateRemainingCount();
+            checkMatch();
+        }
+
+        function renderSlots() {
+            const cells = document.querySelectorAll('.slot-cell');
+            cells.forEach((cell, idx) => {
+                cell.innerHTML = '';
+                if (slotTiles[idx]) {
+                    const t = slotTiles[idx];
+                    const el = document.createElement('div');
+                    el.className = 'tile';
+                    el.style.background = t.element.color;
+                    let iconContent = t.element.isImage 
+                        ? `<img src="${t.element.imgSrc}" alt="" onerror="this.src=''">` 
+                        : `<div class="tile-icon">${t.element.icon}</div>`;
+                    el.innerHTML = `${iconContent}<div class="tile-name">${t.element.name}</div>`;
+                    cell.appendChild(el);
+                }
+            });
+        }
+
+        function checkMatch() {
+            const counts = {};
+            slotTiles.forEach(t => { counts[t.element.id] = (counts[t.element.id] || 0) + 1; });
+
+            for (let elemId in counts) {
+                if (counts[elemId] >= 3) {
+                    setTimeout(() => {
+                        let removed = 0;
+                        slotTiles = slotTiles.filter(t => {
+                            if (t.element.id == elemId && removed < 3) { removed++; return false; }
+                            return true;
+                        });
+                        score += 30;
+                        scoreEl.innerText = score;
+                        renderSlots();
+                        checkGameEnd();
+                    }, 150);
+                    return;
+                }
+            }
+            checkGameEnd();
+        }
+
+        function checkGameEnd() {
+            if (allTiles.length === 0 && slotTiles.length === 0) {
+                endGame(true);
+            } else if (slotTiles.length >= 7) {
+                endGame(false);
+            }
+        }
+
+        function useProp(type) {
+            if (!gameActive) return;
+            if (type === 'out') {
+                if (slotTiles.length === 0) return;
+                const moved = slotTiles.splice(0, Math.min(3, slotTiles.length));
+                moved.forEach((tile, index) => {
+                    tile.layer = 99;
+                    tile.y = 10 + index * 10;
+                    tile.x = 10 + index * 60;
+                    const el = document.createElement('div');
+                    el.className = 'tile';
+                    el.style.left = `${tile.x}px`;
+                    el.style.top = `${tile.y}px`;
+                    el.style.zIndex = 100;
+                    let iconContent = tile.element.isImage ? `<img src="${tile.element.imgSrc}" alt="" onerror="this.src=''">` : `<div class="tile-icon">${tile.element.icon}</div>`;
+                    el.innerHTML = `${iconContent}<div class="tile-name">${tile.element.name}</div>`;
+                    el.onclick = () => onTileClick(tile);
+                    tile.dom = el;
+                    playArea.appendChild(el);
+                    allTiles.push(tile);
+                });
+                renderSlots();
+                updateBlockedStatus();
+                updateRemainingCount();
+            } else if (type === 'undo') {
+                if (moveHistory.length === 0) return;
+                const lastTile = moveHistory.pop();
+                slotTiles = slotTiles.filter(t => t.id !== lastTile.id);
+                const el = document.createElement('div');
+                el.className = 'tile';
+                el.style.left = `${lastTile.x}px`;
+                el.style.top = `${lastTile.y}px`;
+                el.style.zIndex = lastTile.layer + 1;
+                let iconContent = lastTile.element.isImage ? `<img src="${lastTile.element.imgSrc}" alt="" onerror="this.src=''">` : `<div class="tile-icon">${lastTile.element.icon}</div>`;
+                el.innerHTML = `${iconContent}<div class="tile-name">${lastTile.element.name}</div>`;
+                el.onclick = () => onTileClick(lastTile);
+                lastTile.dom = el;
+                playArea.appendChild(lastTile);
+                allTiles.push(lastTile);
+                renderSlots();
+                updateBlockedStatus();
+                updateRemainingCount();
+            } else if (type === 'shuffle') {
+                if (allTiles.length === 0) return;
+                const positions = allTiles.map(t => ({ x: t.x, y: t.y, layer: t.layer }));
+                positions.sort(() => Math.random() - 0.5);
+                allTiles.forEach((tile, idx) => {
+                    tile.x = positions[idx].x;
+                    tile.y = positions[idx].y;
+                    tile.layer = positions[idx].layer;
+                    if (tile.dom) {
+                        tile.dom.style.left = `${tile.x}px`;
+                        tile.dom.style.top = `${tile.y}px`;
+                        tile.dom.style.zIndex = tile.layer + 1;
+                    }
+                });
+                updateBlockedStatus();
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            scoreEl.innerText = score;
+            gameActive = true;
+            startScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+            generateTiles();
+        }
+
+        function endGame(isWin) {
+            gameActive = false;
+            document.getElementById('final-score').innerText = score;
+            const langData = i18n[currentLang];
+            document.getElementById('gameover-title').innerText = isWin ? langData.gameoverTitleWin : langData.gameoverTitleFail;
+            const badge = document.getElementById('gameover-highscore');
+            let highScore = parseInt(localStorage.getItem('utopia_match_highscore')) || 0;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('utopia_match_highscore', highScore);
+                badge.innerHTML = langData.newHighScoreFormat(highScore);
+                badge.style.color = '#4ade80';
+            } else {
+                badge.innerHTML = langData.highScoreFormat(highScore);
+                badge.style.color = '#facc15';
+            }
+            gameoverScreen.classList.remove('hidden');
+        }
+
+        function goHome() {
+            gameActive = false;
+            updateHighScoreDisplay();
+            gameoverScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
